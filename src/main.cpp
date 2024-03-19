@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <QTRSensors.h> //Biblioteca do sensor infravermelho
 
-#define VERSAO 1.0
+#define VERSAO 1.01
 // Definição Pinos da ponte H--------------------------------------------------------------------------------------
 
 #define IN1 7   // Horario Motor Esquerdo
