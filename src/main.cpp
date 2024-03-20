@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <QTRSensors.h> //Biblioteca do sensor infravermelho
 
-#define VERSAO 1.02
+#define VERSAO 1.1
 // Definição Pinos da ponte H--------------------------------------------------------------------------------------
 
 #define IN1 7   // Horario Motor Esquerdo
@@ -29,7 +29,7 @@ const int velMin_M2 = 150 + OFFSET;
 
 const int setpoint = 3500;
 
-const uint8_t NUM_SENSORES = 5;
+const uint8_t NUM_SENSORES = 8;
 uint16_t valorSensores[NUM_SENSORES];
 
 unsigned long int tempo;
@@ -39,7 +39,7 @@ int ultimo_val_sensor = 0;
 double kp_c = 0, ki_c = 0, kd_c = 0;
 double kp = 0.04, ki = 0, kd = 0;
 
-double val_sensor;
+int val_sensor;
 // Objetos---------------------------------------------------------------------------------------------------------
 
 QTRSensors qtr;
@@ -48,7 +48,7 @@ QTRSensors qtr;
 void setup()
 {
 
-  Serial.begin(9600);
+  // Serial.begin(9600);
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT);
@@ -69,20 +69,7 @@ void loop()
   if (digitalRead(FALL))
   {
     digitalWrite(SLEEP, 1);
-
-    if (millis() - tempo >= 200)
-    {
-      qtr.readLineBlack(valorSensores);
-
-      for (int i = 0; i < NUM_SENSORES; i++)
-      {
-        Serial.print(valorSensores[i]);
-        Serial.print('\t');
-      }
-      Serial.println("");
-
-      controlePid();
-    }
+    controlePid();
   }
 
   else
@@ -146,42 +133,7 @@ double calculoPid(double input, double kp, double ki, double kd)
 
 void controlePid()
 {
-  static int last_value = 0;
-  double media = 0;
-  double soma = 0;
-
-  qtr.readLineBlack(valorSensores);
-
-  while (valorSensores[0] > 900 && valorSensores[1] > 900 && valorSensores[2] > 900 && valorSensores[3] > 900 && valorSensores[4] > 900 && valorSensores[5] > 900 && valorSensores[6] > 900 && valorSensores[7] > 900)
-  {
-    if (ultimo_val_sensor > 0)
-    {
-      controleMotor(velMax_M1, -velMax_M2);
-    }
-    else
-    {
-      controleMotor(-velMax_M1, velMax_M2);
-    }
-    qtr.readLineBlack(valorSensores);
-  }
-
-  for (int i = 0; i < NUM_SENSORES; i++)
-  {
-    int aux = valorSensores[i] > 700;
-    media += aux * i * 1000;
-    soma += aux;
-  }
-
-  if (soma == 0)
-    soma = 1;
-
-  val_sensor = (media / soma);
-
-  if (val_sensor == 0 && last_value == 7000)
-    val_sensor = 7000;
-
-  else
-    last_value = val_sensor;
+  val_sensor = qtr.readLineBlack(valorSensores);
 
   double pid = calculoPid(val_sensor, kp, ki, kd);
 
@@ -201,6 +153,7 @@ void controlePid()
   Serial.print('\t');
   Serial.print("M1: ");
   Serial.print(vel_M1);
+  Serial.print('\t');
   Serial.print("M2: ");
   Serial.println(vel_M2);
 
