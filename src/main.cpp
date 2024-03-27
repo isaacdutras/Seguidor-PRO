@@ -4,10 +4,10 @@
 #define VERSAO 1.1
 // Definição Pinos da ponte H--------------------------------------------------------------------------------------
 
-#define IN1 7   // Horario Motor Esquerdo
-#define IN2 5   // Antihorario Motor Esquerdo
-#define IN3 8   // Horario Motor Direito
-#define IN4 6   // Antihorario Motor Direito
+#define IN1 7   // Horario Motor Esquerdo certo
+#define IN2 6   // Antihorario Motor Esquerdo errado
+#define IN3 8   // Horario Motor Direito errado
+#define IN4 9   // Antihorario Motor Direito errado
 #define SLEEP 3 // Ativa ou desativa o output da ponte H
 #define FALL 2  // Detecta se tem algum erro
 //-----------------------------------------------------------------------------------------------------------------
@@ -21,8 +21,8 @@ void controlePid();
 void controleMotor(int vel_M1, int vel_M2);
 // Variaveis----------------------------------------------------------------------------------------------------------------
 
-const int velMax_M1 = 135 + OFFSET;
-const int velMax_M2 = 135;
+const int velMax_M1 = 150 + OFFSET;
+const int velMax_M2 = 150;
 
 const int velMin_M1 = 130 + OFFSET;
 const int velMin_M2 = 130;
@@ -37,17 +37,17 @@ unsigned long int tempo;
 int ultimo_val_sensor = 0;
 
 double kp_c = 0, ki_c = 0, kd_c = 0;
-double kp = 0.13, ki = 0.0012, kd = 0.14;
+double kp = 0.07, ki = 0, kd = 0;
 
-int val_sensor;
-// Objetos---------------------------------------------------------------------------------------------------------
+// kp: 0.10 ki: 0.007 kd: 0.9
 
-QTRSensors qtr;
-//----------------------------------------------------------------------------------------------------------------
+uint16_t val_sensor;
+
+QTRSensors qtr; // Objeto qtr
 
 void setup()
 {
-  Serial.begin(9600);
+  // Serial.begin(9600);
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT);
@@ -61,7 +61,6 @@ void setup()
   analogWrite(IN2, 0);
   analogWrite(IN3, 0);
   analogWrite(IN4, 0);
-
 }
 
 void loop()
@@ -69,11 +68,6 @@ void loop()
   if (digitalRead(FALL))
   {
     digitalWrite(SLEEP, 1);
-    // //if (millis() - tempo <= 1000)
-    // {
-    //   controleMotor(150,150);
-    // }
-    
     controlePid();
   }
 
@@ -99,20 +93,6 @@ void calibrar()
   }
   digitalWrite(LED_BUILTIN, LOW);
 
-  for (uint8_t i = 0; i < NUM_SENSORES; i++)
-  {
-    Serial.print(qtr.calibrationOn.minimum[i]);
-    Serial.print(' ');
-  }
-  Serial.println();
-
-  for (uint8_t i = 0; i < NUM_SENSORES; i++)
-  {
-    Serial.print(qtr.calibrationOn.maximum[i]);
-    Serial.print(' ');
-  }
-  Serial.println();
-  Serial.println();
   delay(1000);
 }
 
@@ -138,34 +118,23 @@ double calculoPid(double input, double kp, double ki, double kd)
 
 void controlePid()
 {
-  // static double last_value = 0;
-  // double media = 0;
-  // double soma = 0;
-
   val_sensor = qtr.readLineBlack(valorSensores);
-
-  // for (int i = 0; i < NUM_SENSORES; i++)
-  // {
-  //   int aux = valorSensores[i] > 700;
-  //   media += aux * i * 1000;
-  //   soma += aux;
-  // }
-
-  // if (soma == 0)
-  //   soma = 1;
-
-  // val_sensor = (media / soma);
-
-  // if (val_sensor == 0 && last_value == 7000)
-  //   val_sensor = 7000;
-
-  // else
-  //   last_value = val_sensor;
 
   double pid = calculoPid(val_sensor, kp, ki, kd);
 
-  int vel_M1 = velMin_M1 - pid > 0 ? velMin_M1 - pid : 0;
-  int vel_M2 = velMin_M2 + pid > 0 ? velMin_M2 + pid : 0;
+  int vel_M1 = velMin_M1 + pid > 0 ? velMin_M1 + pid : 0;
+  int vel_M2 = velMin_M2 - pid > 0 ? velMin_M2 - pid : 0;
+
+  if (val_sensor == 0)
+  {
+    vel_M1 = velMax_M1;
+    vel_M2 = 0;
+  }
+  else if (val_sensor == 7000)
+  {
+    vel_M1 = 0;
+    vel_M2 = velMax_M2;
+  }
 
   if (vel_M1 > velMax_M1)
   {
@@ -175,15 +144,6 @@ void controlePid()
   {
     vel_M2 = velMax_M2;
   }
- 
-  // Serial.print("SENSOR: ");
-  // Serial.print(val_sensor);
-  // Serial.print('\t');
-  // Serial.print("M1: ");
-  // Serial.print(vel_M1);
-  // Serial.print('\t');
-  // Serial.print("M2: ");
-  // Serial.println(vel_M2);
 
   controleMotor(vel_M1, vel_M2);
 }
@@ -193,13 +153,13 @@ void controleMotor(int vel_M1, int vel_M2)
 
   if (vel_M1 > 0)
   {
-    analogWrite(IN1, vel_M1);
-    analogWrite(IN2, 0);
+    analogWrite(IN1, 0);
+    analogWrite(IN2, vel_M1);
   }
   else
   {
-    analogWrite(IN1, 0);
-    analogWrite(IN2, -vel_M1);
+    analogWrite(IN1, -vel_M1);
+    analogWrite(IN2, 0);
   }
 
   if (vel_M2 > 0)
