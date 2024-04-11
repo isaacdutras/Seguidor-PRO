@@ -1,7 +1,9 @@
 #include <Arduino.h>
 #include <QTRSensors.h> //Biblioteca do sensor infravermelho
 
-#define VERSAO 1.1
+#define GENERO "Binario"
+
+#define VERSAO 1.0
 // Definição Pinos da ponte H--------------------------------------------------------------------------------------
 
 #define IN1 7   // Horario Motor Esquerdo certo
@@ -21,11 +23,11 @@ void controlePid();
 void controleMotor(int vel_M1, int vel_M2);
 // Variaveis----------------------------------------------------------------------------------------------------------------
 
-const int velMax_M1 = 150 + OFFSET;
-const int velMax_M2 = 150;
+const int velMax_M1 = 255 + OFFSET;
+const int velMax_M2 = 255;
 
-const int velMin_M1 = 130 + OFFSET;
-const int velMin_M2 = 130;
+const int velMin_M1 = 232 + OFFSET;
+const int velMin_M2 = 232;
 
 const int setpoint = 3500;
 
@@ -37,9 +39,7 @@ unsigned long int tempo;
 int ultimo_val_sensor = 0;
 
 double kp_c = 0, ki_c = 0, kd_c = 0;
-double kp = 0.07, ki = 0, kd = 0;
-
-// kp: 0.10 ki: 0.007 kd: 0.9
+double kp = 0.164, ki = 0, kd = 0.4;
 
 uint16_t val_sensor;
 
@@ -47,7 +47,7 @@ QTRSensors qtr; // Objeto qtr
 
 void setup()
 {
-  // Serial.begin(9600);
+  //Serial.begin(9600);
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT);
@@ -57,18 +57,16 @@ void setup()
 
   calibrar();
 
-  analogWrite(IN1, 0);
-  analogWrite(IN2, 0);
-  analogWrite(IN3, 0);
-  analogWrite(IN4, 0);
+  controleMotor(0,0);
+  
 }
 
 void loop()
 {
   if (digitalRead(FALL))
   {
-    digitalWrite(SLEEP, 1);
-    controlePid();
+   digitalWrite(SLEEP, 1);
+   controlePid();
   }
 
   else
@@ -122,8 +120,8 @@ void controlePid()
 
   double pid = calculoPid(val_sensor, kp, ki, kd);
 
-  int vel_M1 = velMin_M1 + pid > 0 ? velMin_M1 + pid : 0;
-  int vel_M2 = velMin_M2 - pid > 0 ? velMin_M2 - pid : 0;
+  int vel_M1 = velMin_M1 + pid;
+  int vel_M2 = velMin_M2 - pid;
 
   if (val_sensor == 0)
   {
@@ -172,4 +170,5 @@ void controleMotor(int vel_M1, int vel_M2)
     analogWrite(IN3, 0);
     analogWrite(IN4, -vel_M2);
   }
+
 }
