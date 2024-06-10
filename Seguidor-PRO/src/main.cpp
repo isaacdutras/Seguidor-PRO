@@ -1,4 +1,4 @@
-#include <Arduino.h>
+#include <Arduino.h> 
 #include <QTRSensors.h> //Biblioteca do sensor infravermelho
 
 #define GENERO "Binario"
@@ -35,7 +35,7 @@ unsigned long int tempo;
 int ultimo_val_sensor = 0;
 
 double kp_c = 0, ki_c = 0, kd_c = 0;
-double kp = 0.19, ki = 0.000001, kd = 0;//kp:0.48
+double kp = 0.164, ki = 0.000001, kd = 0.48;
 
 uint16_t val_sensor;
 
