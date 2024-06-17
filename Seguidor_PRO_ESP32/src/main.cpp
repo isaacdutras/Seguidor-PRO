@@ -89,7 +89,7 @@ void loop()
 void calibrar()
 {
   qtr.setTypeAnalog();
-  qtr.setSensorPins((const uint8_t[]){14, 27, 26, 25, 33, 32, 35, 34}, NUM_SENSORES);
+  qtr.setSensorPins((const uint8_t[]){12, 14, 27, 26, 25, 33, 32, 35}, NUM_SENSORES);
   qtr.setEmitterPin(13);
 
   delay(500);
