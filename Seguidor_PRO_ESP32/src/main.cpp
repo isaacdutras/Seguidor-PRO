@@ -19,6 +19,7 @@ void calibrar();
 double calculoPid();
 void controlePid();
 void controleMotor(int vel_M1, int vel_M2);
+void contagem_de_voltas();
 
 const int BITS = 10;     // Define a resolucao do pwm para 10 Bits (2^10 ou 1024)
 const int FREQ = 100000; // Define a frequencia do pwm
@@ -38,12 +39,20 @@ const int setpoint = 3500;
 const uint8_t NUM_SENSORES = 8;
 uint16_t valorSensores[NUM_SENSORES];
 
+const int SENSOR_CURVA = 15;
+const int SENSOR_PARADA = 34;
+
 unsigned long int tempo;
 
 int ultimo_val_sensor = 0;
 
-double kp_c = 0, ki_c = 0, kd_c = 0;
-double kp = 0.160, ki = 0.01, kd = 0.45;
+double kp_c = 0.180, ki_c = 0.0000001, kd_c = 0.65;
+double kp = 0.160, ki = 0.000001, kd = 0.45;
+
+bool curva = 0;
+
+int n_voltas = 1; // Variável para definir o número de voltas na pista
+int cont_voltas = 0;
 
 uint16_t val_sensor;
 
@@ -52,6 +61,21 @@ QTRSensors qtr; // Objeto qtr
 void setup()
 {
   Serial.begin(115200);
+
+  pinMode(SLEEP, OUTPUT);
+  pinMode(FALL, INPUT_PULLUP);
+  pinMode(SENSOR_CURVA, INPUT);
+  pinMode(SENSOR_PARADA, INPUT);
+
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
 
   ledcSetup(IN1_chanel, FREQ, BITS);
   ledcSetup(IN2_chanel, FREQ, BITS);
@@ -63,9 +87,6 @@ void setup()
   ledcAttachPin(IN1, IN3_chanel);
   ledcAttachPin(IN4, IN4_chanel);
 
-  pinMode(SLEEP, OUTPUT);
-  pinMode(FALL, INPUT_PULLUP);
-
   calibrar();
 
   controleMotor(0, 0);
@@ -73,24 +94,26 @@ void setup()
 
 void loop()
 {
-
-  if (digitalRead(FALL))
+  if (digitalRead(FALL) || cont_voltas < n_voltas + 1)
   {
     digitalWrite(SLEEP, 1);
     controlePid();
+
+    contagem_de_voltas();
   }
 
   else
   {
     Serial.println("Erro na inicalizacao");
   }
+
 }
 
 void calibrar()
 {
   qtr.setTypeAnalog();
-  qtr.setSensorPins((const uint8_t[]){12, 14, 27, 26, 25, 33, 32, 35}, NUM_SENSORES);
-  qtr.setEmitterPin(13);
+  qtr.setSensorPins((const uint8_t[]){13, 14, 27, 26, 25, 33, 32, 35}, NUM_SENSORES);
+  qtr.setEmitterPin(12);
 
   delay(500);
   pinMode(2, OUTPUT);
@@ -127,9 +150,21 @@ double calculoPid(double input, double kp, double ki, double kd)
 
 void controlePid()
 {
+  double pid;
+
   val_sensor = qtr.readLineBlack(valorSensores);
 
-  double pid = calculoPid(val_sensor, kp, ki, kd);
+  bool curva = analogRead(SENSOR_CURVA) > 2000 ? !curva : curva;
+
+  if (curva)
+  {
+    pid = calculoPid(val_sensor, kp_c, ki_c, kd_c);
+  }
+
+  else
+  {
+    pid = calculoPid(val_sensor, kp, ki, kd);
+  }
 
   int vel_M1 = velMin_M1 + pid;
   int vel_M2 = velMin_M2 - pid;
@@ -159,7 +194,6 @@ void controlePid()
 
 void controleMotor(int vel_M1, int vel_M2)
 {
-
   if (vel_M1 > 0)
   {
     ledcWrite(IN1_chanel, 0);
@@ -178,7 +212,17 @@ void controleMotor(int vel_M1, int vel_M2)
   }
   else
   {
-    ledcWrite(IN3, 0);
+    ledcWrite(IN3_chanel, 0);
     ledcWrite(IN4_chanel, -vel_M2);
+  }
+}
+
+void contagem_de_voltas()
+{
+  cont_voltas = 0;
+
+  if (digitalRead(SENSOR_PARADA) > 1500)
+  {
+    cont_voltas++;
   }
 }
