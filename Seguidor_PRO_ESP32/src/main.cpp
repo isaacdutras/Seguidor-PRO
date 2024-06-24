@@ -5,13 +5,43 @@
 
 #define VERSAO 1.0
 
+/*
+Planos da nova pcb:
+
+botao: pino 23
+
+PONTE H:
+
+IN1: pino 4
+IN2: pino 5    (Pinos pwm output)
+IN3: pino 18  
+IN4: pino 19
+SLEEP: pino 22  (pino output)
+FALL: pino 21 (pino input)
+
+SENSOR PRINCIPAL:
+D1: 13
+D2: 14
+D3: 27
+D4: 26  (Dos pinos digitais pode substitutir se o substituto suportar Entrada de Dados e ser ADC)
+D5: 25  
+D6: 33
+D7: 32
+D8: 35
+IR: 12 (pode ser qulquer outro pino output)(Esse pino nao pode ser usado como INPUT)
+
+SENSORES LATERAIS:
+Sensor direita: Pino 34
+Sensor Esquerda: Pino 15
+*/
+
 // Definição Pinos da ponte H
-#define IN1 2    // Horario Motor Esquerdo certo
-#define IN2 4    // Antihorario Motor Esquerdo errado
-#define IN3 5    // Horario Motor Direito errado
-#define IN4 18   // Antihorario Motor Direito errado
-#define SLEEP 19 // Ativa ou desativa o output da ponte H
-#define FALL 21  // Detecta se tem algum erro
+const int IN1 = 2;    // Horario Motor Esquerdo //Trocar pelo 4
+const int IN2 = 4;    // Antihorario Motor Esquerdo //Trocar pelo 5
+const int IN3 = 5;    // Horario Motor Direito //Trocar pelo 18
+const int IN4 = 18;   // Antihorario Motor Direito //Trocar pelo 19
+const int SLEEP = 21; // Ativa ou desativa o output da ponte H //trocar pelo 22
+const int FALL = 19;  // Detecta se tem algum erro //trocar pelo 21
 
 #define OFFSET 0 // Diferenca de potencia entre os dois motores
 
@@ -22,7 +52,7 @@ void controleMotor(int vel_M1, int vel_M2);
 void contagem_de_voltas();
 
 const int BITS = 10;     // Define a resolucao do pwm para 10 Bits (2^10 ou 1024)
-const int FREQ = 100000; // Define a frequencia do pwm
+const int FREQ = 10000; // Define a frequencia do pwm
 const int IN1_chanel = 0;
 const int IN2_chanel = 1;
 const int IN3_chanel = 2;
@@ -39,15 +69,15 @@ const int setpoint = 3500;
 const uint8_t NUM_SENSORES = 8;
 uint16_t valorSensores[NUM_SENSORES];
 
+const int BOTAO_CONTROLE = 0;
 const int SENSOR_CURVA = 15;
 const int SENSOR_PARADA = 34;
-
 unsigned long int tempo;
 
 int ultimo_val_sensor = 0;
 
-double kp_c = 0.180, ki_c = 0.0000001, kd_c = 0.65;
-double kp = 0.160, ki = 0.000001, kd = 0.45;
+double kp_c = 3, ki_c = 0, kd_c = 0;
+double kp = 3, ki = 0, kd = 0;
 
 bool curva = 0;
 
@@ -66,45 +96,64 @@ void setup()
   pinMode(FALL, INPUT_PULLUP);
   pinMode(SENSOR_CURVA, INPUT);
   pinMode(SENSOR_PARADA, INPUT);
+  pinMode(BOTAO_CONTROLE, INPUT_PULLUP);
 
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
 
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, LOW);
+  ledcAttachPin(IN1, IN1_chanel);
+  ledcAttachPin(IN2, IN2_chanel);
+  ledcAttachPin(IN3, IN3_chanel);
+  ledcAttachPin(IN4, IN4_chanel);
 
   ledcSetup(IN1_chanel, FREQ, BITS);
   ledcSetup(IN2_chanel, FREQ, BITS);
-  ledcSetup(IN2_chanel, FREQ, BITS);
+  ledcSetup(IN3_chanel, FREQ, BITS);
   ledcSetup(IN4_chanel, FREQ, BITS);
 
-  ledcAttachPin(IN1, IN1_chanel);
-  ledcAttachPin(IN2, IN2_chanel);
-  ledcAttachPin(IN1, IN3_chanel);
-  ledcAttachPin(IN4, IN4_chanel);
+  controleMotor(0,0);
 
-  calibrar();
-
-  controleMotor(0, 0);
 }
 
 void loop()
 {
-  if (digitalRead(FALL) || cont_voltas < n_voltas + 1)
-  {
-    digitalWrite(SLEEP, 1);
-    controlePid();
+  
+  unsigned int tempo_pressionado = 0;
 
-    contagem_de_voltas();
+  if (!digitalRead(BOTAO_CONTROLE))
+  {
+    tempo = millis();
+
+    while (!digitalRead(BOTAO_CONTROLE))
+    {
+      tempo_pressionado = millis() - tempo;
+    }
   }
 
-  else
+  while(tempo_pressionado <= 2000 && tempo_pressionado != 0)
   {
-    Serial.println("Erro na inicalizacao");
+    
+    if (digitalRead(FALL) /*|| cont_voltas < n_voltas + 1*/)
+    {
+      digitalWrite(SLEEP, 1);
+      controlePid();
+      Serial.println("FUNCIONA");
+     // contagem_de_voltas();
+    }
+
+    else
+    {
+      Serial.println("Erro na inicalizacao");
+      break;
+    }
+
+  }
+
+  if(tempo_pressionado > 2000 && tempo_pressionado != 0)
+  {
+    calibrar();
   }
 
 }
@@ -152,7 +201,7 @@ void controlePid()
 {
   double pid;
 
-  val_sensor = qtr.readLineBlack(valorSensores);
+  val_sensor = qtr.readLineWhite(valorSensores);
 
   bool curva = analogRead(SENSOR_CURVA) > 2000 ? !curva : curva;
 
