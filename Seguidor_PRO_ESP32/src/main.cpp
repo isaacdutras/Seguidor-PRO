@@ -14,7 +14,7 @@ PONTE H:
 
 IN1: pino 4
 IN2: pino 5    (Pinos pwm output)
-IN3: pino 18  
+IN3: pino 18
 IN4: pino 19
 SLEEP: pino 22  (pino output)
 FALL: pino 21 (pino input)
@@ -24,7 +24,7 @@ D1: 13
 D2: 14
 D3: 27
 D4: 26  (Dos pinos digitais pode substitutir se o substituto suportar Entrada de Dados e ser ADC)
-D5: 25  
+D5: 25
 D6: 33
 D7: 32
 D8: 35
@@ -51,7 +51,7 @@ void controlePid();
 void controleMotor(int vel_M1, int vel_M2);
 void contagem_de_voltas();
 
-const int BITS = 10;     // Define a resolucao do pwm para 10 Bits (2^10 ou 1024)
+const int BITS = 10;    // Define a resolucao do pwm para 10 Bits (2^10 ou 1024)
 const int FREQ = 10000; // Define a frequencia do pwm
 const int IN1_chanel = 0;
 const int IN2_chanel = 1;
@@ -69,14 +69,14 @@ const int setpoint = 3500;
 const uint8_t NUM_SENSORES = 8;
 uint16_t valorSensores[NUM_SENSORES];
 
-const int BOTAO_CONTROLE = 0;
+const int BOTAO_CONTROLE = 23;
 const int SENSOR_CURVA = 15;
 const int SENSOR_PARADA = 34;
 unsigned long int tempo;
 
 int ultimo_val_sensor = 0;
 
-double kp_c = 3, ki_c = 0, kd_c = 0;
+double kp_c = 8, ki_c = 0, kd_c = 0;
 double kp = 3, ki = 0, kd = 0;
 
 bool curva = 0;
@@ -113,13 +113,13 @@ void setup()
   ledcSetup(IN3_chanel, FREQ, BITS);
   ledcSetup(IN4_chanel, FREQ, BITS);
 
-  controleMotor(0,0);
+  controleMotor(0, 0);
 
 }
 
 void loop()
 {
-  
+
   unsigned int tempo_pressionado = 0;
 
   if (!digitalRead(BOTAO_CONTROLE))
@@ -134,13 +134,13 @@ void loop()
 
   while(tempo_pressionado <= 2000 && tempo_pressionado != 0)
   {
-    
-    if (digitalRead(FALL) /*|| cont_voltas < n_voltas + 1*/)
+
+    if (digitalRead(FALL) || cont_voltas < n_voltas + 1)
     {
       digitalWrite(SLEEP, 1);
       controlePid();
       Serial.println("FUNCIONA");
-     // contagem_de_voltas();
+      contagem_de_voltas();
     }
 
     else
@@ -201,18 +201,20 @@ void controlePid()
 {
   double pid;
 
-  val_sensor = qtr.readLineWhite(valorSensores);
+  val_sensor = qtr.readLineBlack(valorSensores);
 
-  bool curva = analogRead(SENSOR_CURVA) > 2000 ? !curva : curva;
+  curva = digitalRead(SENSOR_CURVA) == 1 ? !curva : curva;
 
-  if (curva)
+  if (curva == true && valorSensores[3] < 900 && valorSensores[4] < 900)
   {
+    //CURVA
     pid = calculoPid(val_sensor, kp_c, ki_c, kd_c);
   }
 
-  else
+  else if (curva == false && valorSensores[3] > 900 && valorSensores[4] > 900)
   {
-    pid = calculoPid(val_sensor, kp, ki, kd);
+    //RETA
+    pid = calculoPid(val_sensor, kp, ki, kd); 
   }
 
   int vel_M1 = velMin_M1 + pid;
@@ -270,7 +272,7 @@ void contagem_de_voltas()
 {
   cont_voltas = 0;
 
-  if (digitalRead(SENSOR_PARADA) > 1500)
+  if (digitalRead(SENSOR_PARADA))
   {
     cont_voltas++;
   }
