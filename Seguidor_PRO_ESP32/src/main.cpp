@@ -70,6 +70,7 @@ const uint8_t NUM_SENSORES = 8;
 uint16_t valorSensores[NUM_SENSORES];
 
 const int BOTAO_CONTROLE = 23;
+const int BOTAO_CONTROLE = 23;
 const int SENSOR_CURVA = 15;
 const int SENSOR_PARADA = 34;
 unsigned long int tempo;
