@@ -69,15 +69,15 @@ const int setpoint = 3500;
 const uint8_t NUM_SENSORES = 8;
 uint16_t valorSensores[NUM_SENSORES];
 
-const int BOTAO_CONTROLE = 0;
+const int BOTAO_CONTROLE = 23;
 const int SENSOR_CURVA = 15;
 const int SENSOR_PARADA = 34;
 unsigned long int tempo;
 
 int ultimo_val_sensor = 0;
 
-double kp_c = 3, ki_c = 0, kd_c = 0;
-double kp = 3, ki = 0, kd = 0;
+double kp_c = 2, ki_c = 0, kd_c = 0;
+double kp = 0.6, ki = 0, kd = 0.4;
 
 bool curva = 0;
 
@@ -85,6 +85,8 @@ int n_voltas = 1; // Variável para definir o número de voltas na pista
 int cont_voltas = 0;
 
 uint16_t val_sensor;
+
+bool Linha_preta = true;
 
 QTRSensors qtr; // Objeto qtr
 
@@ -135,17 +137,18 @@ void loop()
   while(tempo_pressionado <= 2000 && tempo_pressionado != 0)
   {
     
-    if (digitalRead(FALL) /*|| cont_voltas < n_voltas + 1*/)
+    if (digitalRead(FALL) && cont_voltas < n_voltas + 1)
     {
       digitalWrite(SLEEP, 1);
       controlePid();
       Serial.println("FUNCIONA");
-     // contagem_de_voltas();
+      contagem_de_voltas();
     }
 
     else
     {
       Serial.println("Erro na inicalizacao");
+      digitalWrite(SLEEP, 0);
       break;
     }
 
@@ -201,18 +204,26 @@ void controlePid()
 {
   double pid;
 
-  val_sensor = qtr.readLineWhite(valorSensores);
+  val_sensor = qtr.readLineBlack(valorSensores);
 
-  bool curva = analogRead(SENSOR_CURVA) > 2000 ? !curva : curva;
+  if(digitalRead(SENSOR_CURVA) == Linha_preta)
+  {
+    curva = !curva;
+    while(digitalRead(SENSOR_CURVA) == Linha_preta);
+  }
 
-  if (curva)
+  if (curva == 1 && valorSensores[3] < 900 && valorSensores[4] < 900)
   {
     pid = calculoPid(val_sensor, kp_c, ki_c, kd_c);
   }
 
-  else
+  else if(curva == 0 && valorSensores[3] > 900 && valorSensores[4] > 900)
   {
     pid = calculoPid(val_sensor, kp, ki, kd);
+  }
+  else
+  {
+    pid = calculoPid(val_sensor, kp_c, ki_c, kd_c);
   }
 
   int vel_M1 = velMin_M1 + pid;
@@ -268,10 +279,10 @@ void controleMotor(int vel_M1, int vel_M2)
 
 void contagem_de_voltas()
 {
-  cont_voltas = 0;
-
-  if (digitalRead(SENSOR_PARADA) > 1500)
+  if (digitalRead(SENSOR_PARADA) == Linha_preta)
   {
     cont_voltas++;
+    while (digitalRead(SENSOR_PARADA) == Linha_preta);
+    
   }
 }
