@@ -5,36 +5,6 @@
 
 #define VERSAO 1.0
 
-/*
-Planos da nova pcb:
-
-botao: pino 23
-
-PONTE H:
-
-IN1: pino 4
-IN2: pino 5    (Pinos pwm output)
-IN3: pino 18  
-IN4: pino 19
-SLEEP: pino 22  (pino output)
-FALL: pino 21 (pino input)
-
-SENSOR PRINCIPAL:
-D1: 13
-D2: 14
-D3: 27
-D4: 26  (Dos pinos digitais pode substitutir se o substituto suportar Entrada de Dados e ser ADC)
-D5: 25  
-D6: 33
-D7: 32
-D8: 35
-IR: 12 (pode ser qulquer outro pino output)(Esse pino nao pode ser usado como INPUT)
-
-SENSORES LATERAIS:
-Sensor direita: Pino 34
-Sensor Esquerda: Pino 15
-*/
-
 // Definição Pinos da ponte H
 const int IN1 = 2;    // Horario Motor Esquerdo //Trocar pelo 4
 const int IN2 = 4;    // Antihorario Motor Esquerdo //Trocar pelo 5
@@ -76,15 +46,13 @@ unsigned long int tempo;
 
 int ultimo_val_sensor = 0;
 
-double kp_c = 2, ki_c = 0, kd_c = 0;
+double kp_c = 3, ki_c = 0, kd_c = 2.4;
 double kp = 0.6, ki = 0, kd = 0.4;
 
 bool curva = 0;
 
 int n_voltas = 1; // Variável para definir o número de voltas na pista
 int cont_voltas = 0;
-
-uint16_t val_sensor;
 
 bool Linha_preta = true;
 
@@ -134,27 +102,26 @@ void loop()
     }
   }
 
-  while(tempo_pressionado <= 2000 && tempo_pressionado != 0)
+  while(tempo_pressionado <= 200 && tempo_pressionado != 0)
   {
     
     if (digitalRead(FALL) && cont_voltas < n_voltas + 1)
     {
       digitalWrite(SLEEP, 1);
       controlePid();
-      Serial.println("FUNCIONA");
       contagem_de_voltas();
     }
 
     else
     {
-      Serial.println("Erro na inicalizacao");
       digitalWrite(SLEEP, 0);
+      cont_voltas = 0;
       break;
     }
-
+ 
   }
 
-  if(tempo_pressionado > 2000 && tempo_pressionado != 0)
+  if(tempo_pressionado >= 1200 && tempo_pressionado != 0)
   {
     calibrar();
   }
@@ -202,22 +169,21 @@ double calculoPid(double input, double kp, double ki, double kd)
 
 void controlePid()
 {
+
   double pid;
 
-  val_sensor = qtr.readLineBlack(valorSensores);
+  int val_sensor = qtr.readLineBlack(valorSensores);
 
-  if(digitalRead(SENSOR_CURVA) == Linha_preta)
+  if (digitalRead(SENSOR_CURVA) == Linha_preta)
   {
     curva = !curva;
-    while(digitalRead(SENSOR_CURVA) == Linha_preta);
   }
 
   if (curva == 1 && valorSensores[3] < 900 && valorSensores[4] < 900)
   {
     pid = calculoPid(val_sensor, kp_c, ki_c, kd_c);
   }
-
-  else if(curva == 0 && valorSensores[3] > 900 && valorSensores[4] > 900)
+  else if (curva ==  0 && valorSensores[3] > 900 && valorSensores[4] > 900)
   {
     pid = calculoPid(val_sensor, kp, ki, kd);
   }
@@ -225,19 +191,19 @@ void controlePid()
   {
     pid = calculoPid(val_sensor, kp_c, ki_c, kd_c);
   }
+  
+  int vel_M1 = velMin_M1 - pid;
+  int vel_M2 = velMin_M2 + pid;
 
-  int vel_M1 = velMin_M1 + pid;
-  int vel_M2 = velMin_M2 - pid;
-
-  if (val_sensor == 0)
-  {
-    vel_M1 = velMax_M1;
-    vel_M2 = 0;
-  }
-  else if (val_sensor == 7000)
+  if (valorSensores[0] > 900)
   {
     vel_M1 = 0;
     vel_M2 = velMax_M2;
+  }
+  else if (valorSensores[7] > 900)
+  {
+    vel_M1 = velMax_M1;
+    vel_M2 = 0;
   }
 
   if (vel_M1 > velMax_M1)
@@ -250,6 +216,7 @@ void controlePid()
   }
 
   controleMotor(vel_M1, vel_M2);
+
 }
 
 void controleMotor(int vel_M1, int vel_M2)
@@ -258,22 +225,33 @@ void controleMotor(int vel_M1, int vel_M2)
   {
     ledcWrite(IN1_chanel, 0);
     ledcWrite(IN2_chanel, vel_M1);
+    Serial.print("M1: ");
+    Serial.print(vel_M1);
+    Serial.println('\t');
+
   }
   else
   {
     ledcWrite(IN1_chanel, -vel_M1);
     ledcWrite(IN2_chanel, 0);
+    Serial.print("M1: ");
+    Serial.print(-vel_M1);
+    Serial.println('\t');
   }
 
   if (vel_M2 > 0)
   {
     ledcWrite(IN3_chanel, vel_M2);
     ledcWrite(IN4_chanel, 0);
+    Serial.print("M2: ");
+    Serial.println(vel_M2);
   }
   else
   {
     ledcWrite(IN3_chanel, 0);
     ledcWrite(IN4_chanel, -vel_M2);
+    Serial.print("M2: ");
+    Serial.println(-vel_M2);
   }
 }
 
