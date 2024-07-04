@@ -28,15 +28,15 @@ const int IN2_chanel = 1;
 const int IN3_chanel = 2;
 const int IN4_chanel = 3;
 
-const int velMax_M1 = 1023 + OFFSET;
-const int velMax_M2 = 1023;
+const int velMax_M1 = 1080 + OFFSET;
+const int velMax_M2 = 1080;
 
-const int velMin_M1 = 930 + OFFSET;
-const int velMin_M2 = 930;
+const int velMin_M1 = 750 + OFFSET;
+const int velMin_M2 = 750;
 
 const int setpoint = 3500;
 
-const uint8_t NUM_SENSORES = 8;
+const uint8_t NUM_SENSORES = 6;
 uint16_t valorSensores[NUM_SENSORES];
 
 const int BOTAO_CONTROLE = 23;
@@ -46,8 +46,8 @@ unsigned long int tempo;
 
 int ultimo_val_sensor = 0;
 
-double kp_c = 3, ki_c = 0, kd_c = 2.4;
-double kp = 0.6, ki = 0, kd = 0.4;
+double kp_c = 5, ki_c = 0, kd_c = 4.2;
+double kp = 0.13, ki = 0, kd = 0.8;
 
 bool curva = 0;
 
@@ -84,54 +84,65 @@ void setup()
   ledcSetup(IN4_chanel, FREQ, BITS);
 
   controleMotor(0,0);
-
-}
+  digitalWrite(SLEEP, 0);
+  calibrar();
+} 
 
 void loop()
 {
-  
-  unsigned int tempo_pressionado = 0;
 
-  if (!digitalRead(BOTAO_CONTROLE))
+  int var = qtr.readLineBlack(valorSensores);
+
+  for(int i = 0; i < NUM_SENSORES; i++)
   {
-    tempo = millis();
-
-    while (!digitalRead(BOTAO_CONTROLE))
-    {
-      tempo_pressionado = millis() - tempo;
-    }
+    Serial.print(valorSensores[i]);
+    Serial.print('\t');
   }
 
-  while(tempo_pressionado <= 200 && tempo_pressionado != 0)
-  {
+  Serial.println(var);
+
+  // unsigned int tempo_pressionado = 0;
+
+  // if (!digitalRead(BOTAO_CONTROLE))
+  // {
+  //   tempo = millis();
+
+  //   while (!digitalRead(BOTAO_CONTROLE))
+  //   {
+  //     tempo_pressionado = millis() - tempo;
+  //   }
+  // }
+
+  // while(tempo_pressionado <= 500 && tempo_pressionado != 0)
+  // {
     
-    if (digitalRead(FALL) && cont_voltas < n_voltas + 1)
-    {
-      digitalWrite(SLEEP, 1);
-      controlePid();
-      contagem_de_voltas();
-    }
+  //   if (digitalRead(FALL) && cont_voltas < n_voltas + 1)
+  //   {
+  //     digitalWrite(SLEEP, 1);
+  //     controlePid();
+  //     contagem_de_voltas();
+  //   }
 
-    else
-    {
-      digitalWrite(SLEEP, 0);
-      cont_voltas = 0;
-      break;
-    }
+  //   else
+  //   {
+  //     digitalWrite(SLEEP, 0);
+  //     cont_voltas = 0;
+  //     break;
+  //   }
  
-  }
+  // }
 
-  if(tempo_pressionado >= 1200 && tempo_pressionado != 0)
-  {
-    calibrar();
-  }
+  // if(tempo_pressionado >= 1200 && tempo_pressionado != 0)
+  // {
+  //   calibrar();
+  // }
 
 }
 
 void calibrar()
 {
   qtr.setTypeAnalog();
-  qtr.setSensorPins((const uint8_t[]){13, 14, 27, 26, 25, 33, 32, 35}, NUM_SENSORES);
+  qtr.setSensorPins((const uint8_t[]){14, 27, 26, 25, 33, 32}, NUM_SENSORES);
   qtr.setEmitterPin(12);
 
   delay(500);
@@ -174,37 +185,47 @@ void controlePid()
 
   int val_sensor = qtr.readLineBlack(valorSensores);
 
-  if (digitalRead(SENSOR_CURVA) == Linha_preta)
-  {
-    curva = !curva;
-  }
+  // if (digitalRead(SENSOR_CURVA) == Linha_preta)
+  // {
+  //   curva = !curva;
 
-  if (curva == 1 && valorSensores[3] < 900 && valorSensores[4] < 900)
-  {
-    pid = calculoPid(val_sensor, kp_c, ki_c, kd_c);
-  }
-  else if (curva ==  0 && valorSensores[3] > 900 && valorSensores[4] > 900)
-  {
-    pid = calculoPid(val_sensor, kp, ki, kd);
-  }
-  else
-  {
-    pid = calculoPid(val_sensor, kp_c, ki_c, kd_c);
-  }
+  //   while (digitalRead(SENSOR_CURVA));
+    
+  // }
+  // if (digitalRead(SENSOR_PARADA) == Linha_preta)
+  // {
+  //   cont_voltas++;
+  //   while (digitalRead(SENSOR_PARADA) == Linha_preta);
+    
+  // }
+  // else if(digitalRead(SENSOR_PARADA) == Linha_preta && digitalRead(SENSOR_CURVA) == Linha_preta);
+
+  // if (valorSensores[0] > 900)
+  // {
+  //   val_sensor = 0;
+  // }
+  // if (valorSensores[7] > 900)
+  // {
+  //   val_sensor = 7000;
+  // }
+
+  // if (curva == 1 && valorSensores[3] < 900 && valorSensores[4] < 900)
+  // {
+  //   pid = calculoPid(val_sensor, kp_c, ki_c, kd_c);
+  // }
+  // else if (curva ==  0 && valorSensores[3] > 900 && valorSensores[4] > 900)
+  // {
+  //   pid = calculoPid(val_sensor, kp, ki, kd);
+  // }
+  // else
+  // {
+  //   pid = calculoPid(val_sensor, kp_c, ki_c, kd_c);
+  // }
+
+  pid = calculoPid(val_sensor, kp, ki, kd);
   
   int vel_M1 = velMin_M1 - pid;
   int vel_M2 = velMin_M2 + pid;
-
-  if (valorSensores[0] > 900)
-  {
-    vel_M1 = 0;
-    vel_M2 = velMax_M2;
-  }
-  else if (valorSensores[7] > 900)
-  {
-    vel_M1 = velMax_M1;
-    vel_M2 = 0;
-  }
 
   if (vel_M1 > velMax_M1)
   {
@@ -213,6 +234,16 @@ void controlePid()
   if (vel_M2 > velMax_M2)
   {
     vel_M2 = velMax_M2;
+  }
+
+  if (vel_M1 < 0)
+  {
+    vel_M1 = 0;
+  }
+  
+  if (vel_M2 < 0)
+  {
+    vel_M2 = 0;
   }
 
   controleMotor(vel_M1, vel_M2);
@@ -259,8 +290,6 @@ void contagem_de_voltas()
 {
   if (digitalRead(SENSOR_PARADA) == Linha_preta)
   {
-    cont_voltas++;
-    while (digitalRead(SENSOR_PARADA) == Linha_preta);
-    
+
   }
 }
